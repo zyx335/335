@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>均衡飲食配對遊戲</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+            padding: 20px;
+            background-color: #f0f2f5;
+            font-size: 16px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            font-size: 2.5em;
+        }
+        .score-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+        .score {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        .hearts {
+            font-size: 1.8em;
+            color: #ff4081;
+        }
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .card {
+            position: relative;
+            height: 150px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.4em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background-color 0.2s;
+            transform-style: preserve-3d;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .card.selected {
+            background-color: #e3f2fd;
+        }
+        .card.matched {
+            background-color: #c8e6c9;
+            cursor: not-allowed;
+            animation: pulse 0.5s ease-in-out;
+        }
+        .card.wrong {
+            animation: shake 0.5s ease-in-out;
+            background-color: #ffebee;
+        }
+        .tooltip {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            max-width: 400px;
+            display: none;
+            z-index: 1000;
+            font-size: 1.3em;
+        }
+        .restart-btn {
+            padding: 12px 24px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.4em;
+        }
+        .restart-btn:hover {
+            background-color: #1565c0;
+        }
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-align: center;
+            display: none;
+            z-index: 1001;
+        }
+        .game-over h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #f44336;
+        }
+
+        .effect {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            font-weight: bold;
+            opacity: 0;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .correct-effect {
+            color: #4caf50;
+            animation: fadeInOut 1s ease-in-out;
+        }
+        .wrong-effect {
+            color: #f44336;
+            animation: fadeInOut 1s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 15px;
+            height: 15px;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .card {
+                height: 120px;
+                font-size: 1.2em;
+            }
+            .header h1 {
+                font-size: 1.8em;
+            }
+            .score, .hearts {
+                font-size: 1.4em;
+            }
+            .restart-btn {
+                font-size: 1.2em;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>均衡飲食配對遊戲</h1>
+            <div class="score-container">
+                <div class="score">得分：<span id="score">0</span> / 10</div>
+                <div class="hearts" id="hearts">❤️❤️❤️</div>
+            </div>
+            <button class="restart-btn" onclick="restartGame()">重新開始</button>
+        </div>
+        <div class="game-container" id="gameBoard"></div>
+        <div class="tooltip" id="tooltip"></div>
+        <div class="game-over" id="gameOver">
+            <h2>遊戲結束</h2>
+            <p>你的生命值已耗盡！</p>
+            <button class="restart-btn" onclick="restartGame()">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            { id: 1, term: "全穀雜糧", definition: "富含膳食纖維，可以幫助腸道健康" },
+            { id: 2, term: "豆魚蛋肉", definition: "提供優質蛋白質，幫助身體修復和生長" },
+            { id: 3, term: "蔬菜", definition: "提供維生素、礦物質和膳食纖維" },
+            { id: 4, term: "水果", definition: "含有豐富的維生素C和抗氧化物質" },
+            { id: 5, term: "乳品", definition: "鈣質的重要來源，促進骨骼健康" },
+            { id: 6, term: "堅果種子", definition: "含有健康脂肪和蛋白質的營養密集食物" },
+            { id: 7, term: "根莖類", definition: "提供碳水化合物，是身體主要能量來源" },
+            { id: 8, term: "菇類", definition: "低熱量高營養，含有獨特的免疫增強物質" },
+            { id: 9, term: "海藻類", definition: "富含碘質和膳食纖維的健康食材" },
+            { id: 10, term: "油脂類", definition: "提供必需脂肪酸，適量攝取對健康有益" }
+        ];
+
+        let score = 0;
+        let hearts = 3;
+        let selectedCards = [];
+        let matchedPairs = new Set();
+
+        function updateHearts() {
+            document.getElementById('hearts').textContent = '❤️'.repeat(hearts);
+        }
+
+        function createEffect(text, isCorrect) {
+            const effect = document.createElement('div');
+            effect.className = `effect ${isCorrect ? 'correct-effect' : 'wrong-effect'}`;
+            effect.textContent = isCorrect ? '答對了！' : '答錯了！';
+            document.body.appendChild(effect);
+            setTimeout(() => effect.remove(), 1000);
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                confetti.style.left = Math.random() * window.innerWidth + 'px';
+                confetti.style.top = -10 + 'px';
+                document.body.appendChild(confetti);
+
+                const animation = confetti.animate([
+                    { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
+                    { transform: `translate(${Math.random() * 200 - 100}px, ${window.innerHeight}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }
+                ], {
+                    duration: 1500 + Math.random() * 1000,
+                    easing: 'cubic-bezier(.25,.46,.45,.94)'
+                });
+
+                animation.onfinish = () => confetti.remove();
+            }
+        }
+
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function createGameBoard() {
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            
+            const allCards = [
+                ...questions.map(q => ({ id: q.id, content: q.term, type: 'term' })),
+                ...questions.map(q => ({ id: q.id, content: q.definition, type: 'definition' }))
+            ];
+            
+            shuffle(allCards);
+
+            allCards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.textContent = card.content;
+                cardElement.dataset.id = card.id;
+                cardElement.dataset.type = card.type;
+
+                cardElement.addEventListener('click', () => handleCardClick(cardElement));
+                
+                if (card.type === 'term') {
+                    cardElement.addEventListener('mouseenter', () => showTooltip(card.id));
+                    cardElement.addEventListener('mouseleave', hideTooltip);
+                }
+
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        function handleCardClick(card) {
+            if (selectedCards.length === 2 || 
+                card.classList.contains('matched') || 
+                selectedCards.includes(card)) {
+                return;
+            }
+
+            card.classList.add('selected');
+            selectedCards.push(card);
+
+            if (selectedCards.length === 2) {
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = selectedCards;
+            const match = card1.dataset.id === card2.dataset.id &&
+                         card1.dataset.type !== card2.dataset.type;
+
+            setTimeout(() => {
+                if (match) {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    matchedPairs.add(card1.dataset.id);
+                    score++;
+                    document.getElementById('score').textContent = score;
+                    createEffect('答對了！', true);
+                    createConfetti();
+                } else {
+                    card1.classList.add('wrong');
+                    card2.classList.add('wrong');
+                    createEffect('答錯了！', false);
+                    hearts--;
+                    updateHearts();
+                    
+                    if (hearts <= 0) {
+                        setTimeout(() => {
+                            document.getElementById('gameOver').style.display = 'block';
+                        }, 500);
+                    }
+                    
+                    setTimeout(() => {
+                        card1.classList.remove('wrong');
+                        card2.classList.remove('wrong');
+                    }, 500);
+                }
+                
+                setTimeout(() => {
+                    card1.classList.remove('selected');
+                    card2.classList.remove('selected');
+                    selectedCards = [];
+                }, 200);
+            }, 500);
+        }
+
+        function showTooltip(id) {
+            const tooltip = document.getElementById('tooltip');
+            const question = questions.find(q => q.id === parseInt(id));
+            tooltip.innerHTML = `<strong>${question.term}</strong><br>${question.definition}`;
+            tooltip.style.display = 'block';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        function restartGame() {
+            score = 0;
+            hearts = 3;
+            document.getElementById('score').textContent = score;
+            document.getElementById('gameOver').style.display = 'none';
+            updateHearts();
+            matchedPairs.clear();
+            selectedCards = [];
+            createGameBoard();
+        }
+
+        // 初始化遊戲
+        createGameBoard();
+    </script>
+</body>
+</html>
